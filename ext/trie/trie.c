@@ -1,5 +1,6 @@
 #include "ruby.h"
 #include "trie.h"
+#include "trie-private.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -8,7 +9,7 @@ VALUE cTrie, cTrieNode;
 
 /*
  * Document-class: Trie
- * 
+ *
  * A key-value data structure for string keys which is efficient memory usage and fast retrieval time.
  *
  */
@@ -34,7 +35,7 @@ static VALUE rb_trie_read(VALUE self, VALUE filename_base) {
   VALUE da_filename = rb_str_dup(filename_base);
   rb_str_concat(da_filename, rb_str_new2(".da"));
   StringValue(da_filename);
-    
+
   VALUE tail_filename = rb_str_dup(filename_base);
   rb_str_concat(tail_filename, rb_str_new2(".tail"));
   StringValue(tail_filename);
@@ -113,7 +114,7 @@ static VALUE rb_trie_get(VALUE self, VALUE key) {
  *   add(key)
  *   add(key,value)
  *
- * Add a key, or a key and value to the Trie.  If you add a key without a value it assumes true for the value. 
+ * Add a key, or a key and value to the Trie.  If you add a key without a value it assumes true for the value.
  *
  */
 static VALUE rb_trie_add(VALUE self, VALUE args) {
@@ -129,7 +130,7 @@ static VALUE rb_trie_add(VALUE self, VALUE args) {
 	StringValue(key);
 
     TrieData value = size == 2 ? RARRAY_PTR(args)[1] : TRIE_DATA_ERROR;
-    
+
     if(trie_store(trie, (TrieChar*)RSTRING_PTR(key), value))
 		return Qtrue;
     else
@@ -172,7 +173,7 @@ static VALUE walk_all_paths(Trie *trie, VALUE children, TrieState *state, char *
 			}
 
 			walk_all_paths(trie, children, next_state, prefix, prefix_size + 1);
-			
+
 			prefix[prefix_size] = 0;
 			trie_state_free(next_state);
 		}
@@ -196,7 +197,7 @@ static Bool traverse(TrieState *state, TrieChar *char_prefix) {
  * call-seq:
  *   children(prefix) -> [ key, ... ]
  *
- * Finds all keys in the Trie beginning with the given prefix. 
+ * Finds all keys in the Trie beginning with the given prefix.
  *
  */
 static VALUE rb_trie_children(VALUE self, VALUE prefix) {
@@ -212,14 +213,14 @@ static VALUE rb_trie_children(VALUE self, VALUE prefix) {
     TrieState *state = trie_root(trie);
     VALUE children = rb_ary_new();
 	TrieChar *char_prefix = (TrieChar*)RSTRING_PTR(prefix);
-    
+
     if(!traverse(state, char_prefix)) {
     	return children;
     }
 
     if(trie_state_is_terminal(state))
 		rb_ary_push(children, prefix);
-	
+
 	char prefix_buffer[1024];
 	memcpy(prefix_buffer, char_prefix, prefix_size);
 	prefix_buffer[prefix_size] = 0;
@@ -302,7 +303,7 @@ static VALUE walk_all_paths_with_values(Trie *trie, VALUE children, TrieState *s
 			if(trie_state_is_terminal(next_state)) {
 				TrieState *end_state = trie_state_clone(next_state);
 				trie_state_walk(end_state, '\0');
- 
+
 				char *word = (char*) malloc(prefix_size + 2);
 				memcpy(word, prefix, prefix_size + 2);
 
@@ -312,12 +313,12 @@ static VALUE walk_all_paths_with_values(Trie *trie, VALUE children, TrieState *s
 				TrieData trie_data = trie_state_get_data(end_state);
 				rb_ary_push(tuple, (VALUE)trie_data);
 				rb_ary_push(children, tuple);
- 
+
 				trie_state_free(end_state);
 			}
 
 			walk_all_paths_with_values(trie, children, next_state, prefix, prefix_size + 1);
-			
+
 			prefix[prefix_size] = 0;
 			trie_state_free(next_state);
 		}
@@ -328,8 +329,8 @@ static VALUE walk_all_paths_with_values(Trie *trie, VALUE children, TrieState *s
  * call-seq:
  *   children_with_values(key) -> [ [key,value], ... ]
  *
- * Finds all keys with their respective values in the Trie beginning with the given prefix. 
- * 
+ * Finds all keys with their respective values in the Trie beginning with the given prefix.
+ *
  */
 static VALUE rb_trie_children_with_values(VALUE self, VALUE prefix) {
     if(NIL_P(prefix))
@@ -342,11 +343,11 @@ static VALUE rb_trie_children_with_values(VALUE self, VALUE prefix) {
 
 	int prefix_size = RSTRING_LEN(prefix);
     TrieChar *char_prefix = (TrieChar*)RSTRING_PTR(prefix);
-    
+
     VALUE children = rb_ary_new();
 
     TrieState *state = trie_root(trie);
-    
+
     if(!traverse(state, char_prefix)) {
 		return children;
 	}
@@ -391,7 +392,7 @@ static VALUE rb_trie_root(VALUE self) {
 
 	TrieState *state = trie_root(trie);
 	RDATA(trie_node)->data = state;
-    
+
     rb_iv_set(trie_node, "@state", Qnil);
     rb_iv_set(trie_node, "@full_state", rb_str_new2(""));
     return trie_node;
@@ -400,7 +401,7 @@ static VALUE rb_trie_root(VALUE self) {
 
 /*
  * Document-class: TrieNode
- * 
+ *
  * Represents a single node in the Trie. It can be used as a cursor to walk around the Trie.
  * You can grab a TrieNode for the root of the Trie by using Trie#root.
  *
@@ -415,7 +416,7 @@ static VALUE rb_trie_node_alloc(VALUE klass) {
 /* nodoc */
 static VALUE rb_trie_node_initialize_copy(VALUE self, VALUE from) {
 	RDATA(self)->data = trie_state_clone(RDATA(from)->data);
-    
+
     VALUE state = rb_iv_get(from, "@state");
     rb_iv_set(self, "@state", state == Qnil ? Qnil : rb_str_dup(state));
 
@@ -465,7 +466,7 @@ static VALUE rb_trie_node_walk_bang(VALUE self, VALUE rchar) {
 		return Qnil;
 
     Bool result = trie_state_walk(state, *RSTRING_PTR(rchar));
-    
+
     if(result) {
 		rb_iv_set(self, "@state", rchar);
 		VALUE full_state = rb_iv_get(self, "@full_state");
@@ -480,7 +481,7 @@ static VALUE rb_trie_node_walk_bang(VALUE self, VALUE rchar) {
  * call-seq:
  *   walk(letter) -> TrieNode
  *
- * Tries to walk down a particular branch of the Trie.  It clones the node it is called on and 
+ * Tries to walk down a particular branch of the Trie.  It clones the node it is called on and
  * walks with that one, leaving the original unchanged.
  *
  */
@@ -496,7 +497,7 @@ static VALUE rb_trie_node_walk(VALUE self, VALUE rchar) {
 		return Qnil;
 
     Bool result = trie_state_walk(state, *RSTRING_PTR(rchar));
-    
+
     if(result) {
 		rb_iv_set(new_node, "@state", rchar);
 		VALUE full_state = rb_iv_get(new_node, "@full_state");
@@ -511,7 +512,7 @@ static VALUE rb_trie_node_walk(VALUE self, VALUE rchar) {
  * call-seq:
  *   value
  *
- * Attempts to get the value at this node of the Trie.  This only works if the node is a terminal 
+ * Attempts to get the value at this node of the Trie.  This only works if the node is a terminal
  * (i.e. end of a key), otherwise it returns nil.
  *
  */
@@ -519,7 +520,7 @@ static VALUE rb_trie_node_value(VALUE self) {
     TrieState *state;
 	TrieState *dup;
     Data_Get_Struct(self, TrieState, state);
-    
+
     dup = trie_state_clone(state);
 
     trie_state_walk(dup, 0);
@@ -540,7 +541,7 @@ static VALUE rb_trie_node_value(VALUE self) {
 static VALUE rb_trie_node_terminal(VALUE self) {
     TrieState *state;
     Data_Get_Struct(self, TrieState, state);
-    
+
     return trie_state_is_terminal(state) ? Qtrue : Qnil;
 }
 
@@ -553,7 +554,7 @@ static VALUE rb_trie_node_terminal(VALUE self) {
 static VALUE rb_trie_node_leaf(VALUE self) {
     TrieState *state;
     Data_Get_Struct(self, TrieState, state);
-    
+
     return trie_state_is_leaf(state) ? Qtrue : Qnil;
 }
 
@@ -568,7 +569,7 @@ static VALUE rb_trie_save(VALUE self, VALUE filename_base) {
   VALUE da_filename = rb_str_dup(filename_base);
   rb_str_concat(da_filename, rb_str_new2(".da"));
   StringValue(da_filename);
-    
+
   VALUE tail_filename = rb_str_dup(filename_base);
   rb_str_concat(tail_filename, rb_str_new2(".tail"));
   StringValue(tail_filename);
@@ -593,7 +594,7 @@ static VALUE rb_trie_save(VALUE self, VALUE filename_base) {
   return Qtrue;
 }
 
- 
+
 void Init_trie() {
     cTrie = rb_define_class("Trie", rb_cObject);
     rb_define_alloc_func(cTrie, rb_trie_alloc);
