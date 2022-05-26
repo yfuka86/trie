@@ -25,6 +25,7 @@ void trie_free(Trie *trie);
 static Bool trie_branch_in_branch (Trie *trie, TrieIndex sep_node, const TrieChar *suffix, TrieData data);
 static Bool trie_branch_in_tail(Trie *trie, TrieIndex sep_node, const TrieChar *suffix, TrieData data);
 Bool trie_store (Trie *trie, const TrieChar *key, TrieData data);
+Bool trie_has_key (const Trie *trie, const TrieChar *key);
 Bool trie_retrieve (const Trie *trie, const TrieChar *key, TrieData *o_data);
 Bool trie_delete (Trie *trie, const TrieChar *key);
 TrieState * trie_root (const Trie *trie);
