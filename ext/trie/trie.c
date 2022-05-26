@@ -1,6 +1,5 @@
 #include "ruby.h"
 #include "trie.h"
-#include "trie-private.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
